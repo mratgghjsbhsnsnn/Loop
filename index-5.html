@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>หมากล้อม</title>
+<style>
+:root{--bg:#fafaf9;--ink:#1c1917;--mute:#78716c;--line:#e7e5e4;--board:#ece7da;--gl:#44403c}
+@media(prefers-color-scheme:dark){:root{--bg:#141413;--ink:#f5f5f4;--mute:#a8a29e;--line:#2a2927;--board:#232220;--gl:#8a847c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Sarabun",system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:20px}
+.wrap{width:100%;max-width:560px;text-align:center;margin:auto}
+#lobby{max-width:380px;margin:0 auto}
+h1{font-weight:600;font-size:28px;margin:0 0 2px}
+.sub{color:var(--mute);font-size:14px;margin-bottom:26px}
+button,input{font:inherit;color:inherit}
+button{background:var(--ink);color:var(--bg);border:0;border-radius:12px;padding:11px 16px;cursor:pointer;flex:1}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.4}
+input.code{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:transparent;text-align:center;text-transform:uppercase;letter-spacing:4px;font-size:18px;margin-bottom:10px}
+.or{color:var(--mute);font-size:13px;margin:16px 0}
+.seg{display:flex;gap:8px;margin-bottom:12px}
+.seg label{flex:1}
+.seg input{display:none}
+.seg span{display:block;padding:10px 0;border:1px solid var(--line);border-radius:12px;cursor:pointer;font-size:14px}
+.seg input:checked+span{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.hide{display:none!important}
+#err{color:#b91c1c;font-size:13px;margin-top:10px;min-height:18px}
+.link{background:none;color:var(--mute);text-decoration:underline;flex:none;padding:8px;font-size:13px}
+.players{display:flex;justify-content:center;gap:10px;margin-bottom:10px}
+.chip{display:flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid var(--line);border-radius:999px;font-size:14px;color:var(--mute)}
+.chip.on{color:var(--ink);border-color:var(--ink)}
+.dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--gl)}
+.dot.b{background:#1c1917}.dot.w{background:#fafaf9}
+@media(prefers-color-scheme:dark){.dot.b{background:#0a0a09;border-color:#78716c}.dot.w{background:#e7e5e4;border-color:#e7e5e4}}
+#status{font-size:16px;min-height:24px;margin:4px 0 2px}
+#detail{font-size:13px;color:var(--mute);min-height:20px;margin-bottom:10px}
+#boardbox svg{width:100%;height:auto;display:block;touch-action:manipulation}
+.bg{fill:var(--board)}.ln{stroke:var(--gl);stroke-width:1}.hs{fill:var(--gl)}
+.sb{fill:#1c1917;stroke:#000;stroke-width:1}.sw{fill:#fafaf9;stroke:#78716c;stroke-width:1.2}
+@media(prefers-color-scheme:dark){.sb{fill:#0a0a09;stroke:#78716c}.sw{fill:#e7e5e4;stroke:#e7e5e4}}
+.tb{fill:#1c1917}.tw{fill:#fafaf9;stroke:#78716c;stroke-width:1}
+@media(prefers-color-scheme:dark){.tb{fill:#0a0a09;stroke:#78716c}.tw{fill:#e7e5e4}}
+.mk{fill:none;stroke-width:2}
+.row{display:flex;gap:10px;margin-top:12px}
+.meta{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-top:14px}
+.meta b{color:var(--ink);letter-spacing:3px}
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:10;padding:30px;text-align:center}
+.spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:s .8s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+#loadtxt{color:var(--mute);font-size:14px;max-width:300px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;z-index:20}
+#toast.on{opacity:1}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--ink);max-width:440px;width:92%;padding:22px;text-align:left;max-height:86vh}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog h2{margin:0 0 10px;font-size:20px}
+dialog ol{padding-left:20px;margin:0 0 14px;font-size:14px;line-height:1.7}
+dialog li{margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<div id="loading" class="hide"><div class="spin"></div><div id="loadtxt">กำลังโหลด…</div></div>
+<div id="toast"></div>
+
+<div class="wrap">
+  <div id="lobby">
+    <h1>หมากล้อม</h1>
+    <div class="sub">围棋 · กติกาจีน · เล่นออนไลน์ 2 คน</div>
+    <div class="seg">
+      <label><input type="radio" name="sz" value="9"><span>9×9</span></label>
+      <label><input type="radio" name="sz" value="13"><span>13×13</span></label>
+      <label><input type="radio" name="sz" value="19" checked><span>19×19</span></label>
+    </div>
+    <button id="create" style="width:100%">สร้างห้องใหม่</button>
+    <div class="or">หรือ</div>
+    <input class="code" id="code" maxlength="4" placeholder="รหัสห้อง" autocomplete="off">
+    <button class="ghost" id="join" style="width:100%">เข้าห้อง</button>
+    <div id="err"></div>
+    <button class="link" id="rules1">วิธีเล่น / กติกา</button>
+  </div>
+
+  <div id="game" class="hide">
+    <div class="players">
+      <div class="chip" id="cb"><span class="dot b"></span><span id="nb">ดำ</span></div>
+      <div class="chip" id="cw"><span class="dot w"></span><span id="nw">ขาว</span></div>
+    </div>
+    <p id="status"></p>
+    <div id="detail"></div>
+    <div id="boardbox"></div>
+    <div class="row" id="ctrl"></div>
+    <div class="row">
+      <button class="ghost" id="rules2">วิธีเล่น</button>
+      <button class="ghost" id="copy">คัดลอกลิงก์</button>
+    </div>
+    <div class="meta"><span>ห้อง <b id="rc"></b></span><span id="sync"></span></div>
+  </div>
+</div>
+
+<dialog id="rules">
+  <h2>วิธีเล่นหมากล้อม (กติกาจีน)</h2>
+  <ol>
+    <li><b>กระดาน:</b> วางหมากบนจุดตัดของเส้น เลือกขนาด 9, 13 หรือ 19 ตอนสร้างห้อง (มาตรฐานคือ 19×19)</li>
+    <li><b>ผลัดกันเดิน:</b> ดำเดินก่อน แล้วสลับกัน ครั้งละ 1 เม็ด วางแล้วเลื่อนไม่ได้</li>
+    <li><b>ลมหายใจ:</b> จุดว่างที่ติดกับหมากในแนวบน ล่าง ซ้าย ขวา หมากสีเดียวกันที่ติดกันนับเป็นกลุ่มเดียว ใช้ลมหายใจร่วมกัน</li>
+    <li><b>กินหมาก:</b> เมื่อกลุ่มของคู่ต่อสู้ไม่เหลือลมหายใจ กลุ่มนั้นถูกยกออกจากกระดาน</li>
+    <li><b>ห้ามฆ่าตัวตาย:</b> ห้ามวางจุดที่ทำให้กลุ่มตัวเองไม่เหลือลมหายใจ เว้นแต่การวางนั้นกินหมากคู่ต่อสู้ได้</li>
+    <li><b>ห้ามซ้ำตำแหน่ง (โค):</b> ห้ามวางหมากที่ทำให้หมากทั้งกระดานเหมือนกับตำแหน่งใดๆ ที่เคยเกิดขึ้นแล้วในเกม</li>
+    <li><b>ผ่าน:</b> เลือกผ่านได้เมื่อถึงตา ไม่เสียแต้ม เมื่อผ่านติดกัน 2 ครั้ง เกมเข้าสู่ขั้นนับแต้ม</li>
+    <li><b>ตัดสินหมากตาย:</b> ทั้งสองฝ่ายแตะกลุ่มหมากที่ตายแล้วเพื่อเอาออก แล้วกดยืนยัน ถ้าไม่ตกลงกันให้กด "เล่นต่อ"</li>
+    <li><b>นับแบบพื้นที่:</b> คะแนน = จำนวนหมากบนกระดาน + จุดว่างที่ล้อมโดยสีของตนเพียงสีเดียว จุดที่ติดทั้งสองสีไม่นับให้ใคร</li>
+    <li><b>แต้มต่อ (โคมิ):</b> ขาวได้เพิ่ม 7.5 แต้ม (3¾ จื่อ) ฝ่ายที่คะแนนรวมมากกว่าชนะ ไม่มีเสมอ</li>
+    <li><b>ยอมแพ้:</b> กด "ยอมแพ้" ได้ทุกเมื่อ</li>
+  </ol>
+  <button onclick="document.getElementById('rules').close()" style="width:100%">ปิด</button>
+</dialog>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+import { getFirestore, doc, setDoc, updateDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBVZ1lMfOV4onYfSy8qsunB-FDO6Q8xnL4",
+  authDomain: "makbeep.firebaseapp.com",
+  projectId: "makbeep",
+  storageBucket: "makbeep.firebasestorage.app",
+  messagingSenderId: "1043915021453",
+  appId: "1:1043915021453:web:d73064ef72d5665ee756c4"
+};
+
+const db = getFirestore(initializeApp(firebaseConfig));
+const $ = id => document.getElementById(id);
+const me = localStorage.mb_id || (localStorage.mb_id = Math.random().toString(36).slice(2) + Date.now().toString(36));
+// ใช้ collection เดิม mb_rooms เพื่อให้ Rules ที่ตั้งไว้ใช้ได้ต่อ
+const ref = c => doc(db, "mb_rooms", c);
+const KOMI = 7.5, C = 40, P = 30;
+
+//<PURE>
+function hash(str){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return 4294967296*(2097151&h2)+(h1>>>0);}
+function nb(i,n){const r=i/n|0,c=i%n,o=[];if(r>0)o.push(i-n);if(r<n-1)o.push(i+n);if(c>0)o.push(i-1);if(c<n-1)o.push(i+1);return o;}
+function group(b,n,i){const col=b[i],seen=new Set([i]),libs=new Set(),st=[i];
+  while(st.length){const x=st.pop();for(const y of nb(x,n)){if(b[y]==='.')libs.add(y);else if(b[y]===col&&!seen.has(y)){seen.add(y);st.push(y);}}}
+  return{stones:[...seen],libs:libs.size};}
+function tryMove(d,idx,color){
+  const n=d.size;if(d.board[idx]!=='.')return{err:"จุดนี้มีหมากอยู่แล้ว"};
+  const a=d.board.split('');a[idx]=color;const foe=color==='b'?'w':'b';
+  for(const y of nb(idx,n))if(a[y]===foe){const g=group(a,n,y);if(g.libs===0)g.stones.forEach(s=>a[s]='.');}
+  if(group(a,n,idx).libs===0)return{err:"ห้ามวางจุดที่ทำให้หมากตัวเองไม่มีลมหายใจ"};
+  const str=a.join(''),h=hash(str);
+  if(d.hist.includes(h))return{err:"ห้ามซ้ำตำแหน่งเดิมของกระดาน (กฎโค)"};
+  return{board:str,h};}
+function score(d){
+  const n=d.size,dead=new Set(d.dead),a=d.board.split('').map((c,i)=>dead.has(i)?'.':c);
+  let B=0,W=0;const terr={},seen=new Set();
+  for(let i=0;i<n*n;i++){
+    if(a[i]==='b')B++;else if(a[i]==='w')W++;
+    else if(!seen.has(i)){
+      const reg=[i],st=[i],bd=new Set();seen.add(i);
+      while(st.length){const x=st.pop();for(const y of nb(x,n)){if(a[y]==='.'){if(!seen.has(y)){seen.add(y);st.push(y);reg.push(y);}}else bd.add(a[y]);}}
+      if(bd.size===1){const o=[...bd][0];if(o==='b')B+=reg.length;else W+=reg.length;reg.forEach(r=>terr[r]=o);}
+    }
+  }
+  return{B,W,terr};}
+//</PURE>
+
+let code=null,data=null,unsub=null,finalizing=false,slowT=null,pendT=null,toastT=null;
+const other = c => c === "b" ? "w" : "b";
+const myColor = () => !data ? null : data.b === me ? "b" : data.w === me ? "w" : null;
+const genCode = () => Array.from({length:4}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.random()*32|0]).join("");
+const initDoc = size => ({size, board:".".repeat(size*size), turn:"b", b:me, w:null, phase:"play", passes:0, hist:[hash(".".repeat(size*size))], last:-1, dead:[], agree:{b:false,w:false}, result:null});
+
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2600);}
+function showLoading(m){$("loadtxt").textContent=m;$("loading").classList.remove("hide");clearTimeout(slowT);
+  slowT=setTimeout(()=>$("loadtxt").textContent=m+" — เชื่อมต่อช้ากว่าปกติ โปรดตรวจสอบว่าสร้าง Firestore และ Publish Rules แล้ว",6000);}
+function hideLoading(){clearTimeout(slowT);$("loading").classList.add("hide");}
+function toLobby(m){if(unsub){unsub();unsub=null;}code=null;data=null;hideLoading();$("game").classList.add("hide");$("lobby").classList.remove("hide");history.replaceState(null,"","./");$("err").textContent=m||"";}
+
+function openRoom(c){
+  code=c;history.replaceState(null,"","?room="+c);
+  $("lobby").classList.add("hide");$("game").classList.remove("hide");$("rc").textContent=c;
+  unsub&&unsub();
+  unsub=onSnapshot(ref(c),{includeMetadataChanges:true},s=>{
+    if(!s.exists()){if(!s.metadata.hasPendingWrites)toLobby("ไม่พบห้องนี้");return;}
+    data=s.data();hideLoading();setSync(s.metadata.hasPendingWrites);render();
+    if(data.phase!=="scoring")finalizing=false;
+    else if(data.agree.b&&data.agree.w&&myColor()==="b")finalize();
+  },e=>toLobby("เชื่อมต่อไม่ได้: "+e.message));
+}
+function setSync(pending){
+  const el=$("sync");
+  if(pending){el.textContent="○ กำลังซิงค์…";if(!pendT)pendT=setTimeout(()=>{el.textContent="⚠ ยังซิงค์ไม่ได้ ตรวจสอบ Firestore/Rules";},8000);}
+  else{el.textContent="● ออนไลน์";clearTimeout(pendT);pendT=null;}
+}
+
+async function join(c){
+  $("err").textContent="";showLoading("กำลังเข้าห้อง…");
+  try{
+    await runTransaction(db,async t=>{
+      const s=await t.get(ref(c));
+      if(!s.exists())throw new Error("ไม่พบห้องนี้");
+      const d=s.data();
+      if(d.b===me||d.w===me)return;
+      if(d.w)throw new Error("ห้องเต็มแล้ว");
+      t.update(ref(c),{w:me});
+    });
+  }catch(e){hideLoading();return toLobby(e.message);}
+  openRoom(c);
+}
+
+function create(){
+  const size=+document.querySelector("input[name=sz]:checked").value,c=genCode();
+  showLoading("กำลังสร้างห้อง…");openRoom(c);
+  setDoc(ref(c),initDoc(size)).catch(e=>toLobby("สร้างห้องไม่ได้: "+e.message));
+}
+
+const write = u => updateDoc(ref(code),u).catch(e=>toast("ส่งข้อมูลไม่สำเร็จ: "+e.message));
+
+function tap(idx){
+  const mc=myColor();if(!mc||!data.w)return;
+  if(data.phase==="play"&&data.turn===mc){
+    const r=tryMove(data,idx,mc);if(r.err)return toast(r.err);
+    write({board:r.board,turn:other(mc),passes:0,last:idx,hist:[...data.hist,r.h]});
+  }else if(data.phase==="scoring"&&data.board[idx]!=="."){
+    const g=group(data.board,data.size,idx).stones,dead=new Set(data.dead),has=dead.has(idx);
+    g.forEach(s=>has?dead.delete(s):dead.add(s));
+    write({dead:[...dead],agree:{b:false,w:false}});
+  }
+}
+function pass(){const mc=myColor(),p=data.passes+1;
+  write({passes:p,turn:other(mc),last:-1,...(p>=2?{phase:"scoring",dead:[],agree:{b:false,w:false}}:{})});}
+function resign(){if(confirm("ยืนยันยอมแพ้?"))write({phase:"done",result:{resign:myColor(),winner:other(myColor())}});}
+function agree(){write({["agree."+myColor()]:true});}
+function resume(){write({phase:"play",passes:0,dead:[],agree:{b:false,w:false}});}
+function restart(){if(!confirm("เริ่มเกมใหม่?"))return;const d=initDoc(data.size);
+  write({board:d.board,turn:"b",phase:"play",passes:0,hist:d.hist,last:-1,dead:[],agree:{b:false,w:false},result:null});}
+function finalize(){
+  if(finalizing)return;finalizing=true;
+  const s=score(data),wt=s.W+KOMI,winner=s.B>wt?"b":"w";
+  write({phase:"done",result:{B:s.B,W:s.W,winner,diff:Math.abs(s.B-wt)}});
+}
+
+function stars(n){const a=n===9?[2,4,6]:n===13?[3,6,9]:[3,9,15],o=[];
+  if(n===9){[[2,2],[2,6],[6,2],[6,6],[4,4]].forEach(p=>o.push(p));}
+  else if(n===13){[[3,3],[3,9],[9,3],[9,9],[6,6]].forEach(p=>o.push(p));}
+  else a.forEach(r=>a.forEach(c=>o.push([r,c])));
+  return o;}
+
+function boardSVG(){
+  const n=data.size,L=(n-1)*C,V=L+2*P,X=i=>P+i*C;
+  let s=`<svg viewBox="0 0 ${V} ${V}"><rect class="bg" width="${V}" height="${V}" rx="14"/>`;
+  for(let i=0;i<n;i++)s+=`<line class="ln" x1="${X(i)}" y1="${P}" x2="${X(i)}" y2="${P+L}"/><line class="ln" x1="${P}" y1="${X(i)}" x2="${P+L}" y2="${X(i)}"/>`;
+  stars(n).forEach(([r,c])=>s+=`<circle class="hs" cx="${X(c)}" cy="${X(r)}" r="3.5"/>`);
+  let dead=new Set(),terr={};
+  if(data.phase!=="play"){dead=new Set(data.dead);terr=score(data).terr;}
+  for(const k in terr){const i=+k,x=X(i%n),y=X(i/n|0),q=C*.15;
+    s+=`<rect class="${terr[k]==="b"?"tb":"tw"}" x="${x-q}" y="${y-q}" width="${2*q}" height="${2*q}"/>`;}
+  for(let i=0;i<n*n;i++){const ch=data.board[i];if(ch==="."||(ch==="."))continue;
+    const x=X(i%n),y=X(i/n|0);
+    s+=`<circle class="${ch==="b"?"sb":"sw"}" cx="${x}" cy="${y}" r="${C*.47}"${dead.has(i)?' opacity=".3"':""}/>`;}
+  if(data.last>=0){const x=X(data.last%n),y=X(data.last/n|0),col=data.board[data.last]==="b"?"#fafaf9":"#1c1917";
+    s+=`<circle class="mk" stroke="${col}" cx="${x}" cy="${y}" r="${C*.17}"/>`;}
+  return s+"</svg>";
+}
+
+function render(){
+  if(!data)return;
+  const mc=myColor(),d=data,names={b:"ดำ",w:"ขาว"};
+  $("nb").textContent="ดำ"+(mc==="b"?" (คุณ)":"");$("nw").textContent="ขาว"+(mc==="w"?" (คุณ)":"");
+  $("cb").classList.toggle("on",d.phase==="play"&&!!d.w&&d.turn==="b");
+  $("cw").classList.toggle("on",d.phase==="play"&&!!d.w&&d.turn==="w");
+  $("boardbox").innerHTML=boardSVG();
+  $("boardbox").firstChild.addEventListener("click",e=>{
+    const svg=e.currentTarget,r=svg.getBoundingClientRect(),n=d.size,V=(n-1)*C+2*P,k=V/r.width;
+    const x=Math.round(((e.clientX-r.left)*k-P)/C),y=Math.round(((e.clientY-r.top)*k-P)/C);
+    if(x>=0&&y>=0&&x<n&&y<n)tap(y*n+x);
+  });
+  let st="",dt="",ctrl="";
+  if(!d.w){st="รอคู่ต่อสู้เข้าห้อง…";dt="ส่งรหัสหรือลิงก์ให้เพื่อน";}
+  else if(d.phase==="play"){
+    st=d.turn===mc?"ตาของคุณ":mc?"รอคู่ต่อสู้เดิน…":"ตา"+names[d.turn];
+    dt=d.passes===1?"คู่ต่อสู้ผ่านตา":"";
+    if(mc)ctrl=`<button class="ghost" data-a="pass" ${d.turn!==mc?"disabled":""}>ผ่าน</button><button class="ghost" data-a="resign">ยอมแพ้</button>`;
+  }else if(d.phase==="scoring"){
+    const s=score(d);st="ขั้นนับแต้ม";
+    dt=`แตะกลุ่มหมากที่ตายเพื่อเอาออก · ดำ ${s.B} | ขาว ${s.W} + ${KOMI}`;
+    if(mc)ctrl=`<button data-a="agree" ${d.agree[mc]?"disabled":""}>${d.agree[mc]?"รอคู่ต่อสู้ยืนยัน…":"ยืนยันผล"}</button><button class="ghost" data-a="resume">เล่นต่อ</button>`;
+  }else{
+    const r=d.result;
+    if(r.resign){st=(r.winner===mc?"คุณชนะ 🎉":mc?"คุณแพ้":"หมาก"+names[r.winner]+"ชนะ");dt=names[r.resign]+"ยอมแพ้";}
+    else{st=r.winner===mc?"คุณชนะ 🎉":mc?"คุณแพ้":"หมาก"+names[r.winner]+"ชนะ";
+      dt=`ดำ ${r.B} | ขาว ${r.W} + ${KOMI} = ${r.W+KOMI} · ${names[r.winner]}ชนะ ${r.diff} แต้ม`;}
+    if(mc)ctrl=`<button data-a="restart">เริ่มเกมใหม่</button>`;
+  }
+  $("status").textContent=st;$("detail").textContent=dt;$("ctrl").innerHTML=ctrl;
+  $("ctrl").classList.toggle("hide",!ctrl);
+}
+$("ctrl").addEventListener("click",e=>{const a=e.target.dataset.a;if(a)({pass,resign,agree,resume,restart})[a]();});
+
+$("create").onclick=create;
+$("join").onclick=()=>{const c=$("code").value.trim().toUpperCase();c.length===4?join(c):$("err").textContent="กรอกรหัส 4 ตัว";};
+$("rules1").onclick=$("rules2").onclick=()=>$("rules").showModal();
+$("copy").onclick=async()=>{try{await navigator.clipboard.writeText(location.href);toast("คัดลอกลิงก์แล้ว");}catch{toast(location.href);}};
+
+const q=new URLSearchParams(location.search).get("room");
+if(q)join(q.toUpperCase());
+</script>
+</body>
+</html>
